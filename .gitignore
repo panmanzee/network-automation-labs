@@ -1,0 +1,14 @@
+# never commit
+*.image
+*.bin
+*.qcow2
+*.vmdk
+.vault_pass
+*id_rsa
+*id_ed25519
+!*.pub
+__pycache__/
+*.pyc
+.venv/
+*.swp
+.DS_Store

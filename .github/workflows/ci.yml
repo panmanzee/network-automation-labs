@@ -1,0 +1,44 @@
+---
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "ansible-core>=2.17" ansible-lint yamllint
+      - run: ansible-galaxy collection install -r ansible/requirements.yml
+      - run: yamllint .
+      - run: ansible-lint
+      - name: playbook syntax
+        env:
+          VP: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          # optional repo secret ANSIBLE_VAULT_PASSWORD lets syntax-check load vault.yml
+          if [ -n "$VP" ]; then printf '%s' "$VP" > ansible/.vault_pass; fi
+          shopt -s nullglob
+          for pb in ansible/smoke.yml labs/*/deploy.yml labs/*/verify.yml; do
+            inv="$(dirname "$pb")/inventory.yml"
+            [ "$pb" = "ansible/smoke.yml" ] && inv="ansible/inventory-smoke.yml"
+            echo "== $pb"
+            if [ -f ansible/.vault_pass ]; then
+              ansible-playbook --syntax-check -i "$inv" "$pb"
+            else
+              echo "  (skipped: no ANSIBLE_VAULT_PASSWORD secret set)"
+            fi
+          done
+
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: "--no-progress --exclude-loopback './**/*.md'"
+          fail: true
