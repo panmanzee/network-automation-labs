@@ -1,0 +1,8 @@
+---
+exclude_paths:
+  - .github/
+  - ansible/connection.example.yml  # reference var block, not a real playbook/inventory
+skip_list:
+  # internal roles, never published to Ansible Galaxy
+  - galaxy[version-missing]
+  - galaxy[no-changelog]
