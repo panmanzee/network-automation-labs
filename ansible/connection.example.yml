@@ -1,0 +1,14 @@
+---
+# Reference block. Every labs/*/inventory.yml and ansible/inventory-smoke.yml
+# copies these keys verbatim under `all: vars:`.
+# vault_device_password comes from ansible/vault.yml via each playbook's vars_files.
+all:
+  vars:
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.ios.ios
+    ansible_user: automation
+    ansible_password: "{{ vault_device_password }}"
+    ansible_become: true
+    ansible_become_method: cisco.ios.enable
+    ansible_become_password: "{{ vault_device_password }}"
+    ansible_python_interpreter: auto_silent
