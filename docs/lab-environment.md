@@ -1,15 +1,21 @@
 # Lab environment
 
-Host: `pan-homeserver` (192.168.0.102), Ubuntu Server, i5-4570T, 8 GB RAM.
-Laptop runs the GNS3 GUI (DHCP-reserved IP, e.g. `192.168.0.100`).
+Host: `pan-homeserver`, Ubuntu Server, i5-4570T, 8 GB RAM. Administered over SSH
+only — no console/IPMI (see repo-root network-safety notes and `/home/pan/CLAUDE.md`).
+Laptop runs the GNS3 GUI at `192.168.0.100`.
+
+**Host IP is not pinned** — `eno1` has been both `.101` and `.102` via DHCP. Set
+a router DHCP reservation for its MAC and use that address everywhere. Current: `192.168.0.101`.
 
 ## GNS3
 
-- `gns3server` `<VERSION — fill from Task 3 Step 4>`, installed from `ppa:gns3/ppa`
-  via `setup/install-gns3server.sh`, runs as the `systemd` unit `gns3server`.
-- The GUI on the laptop **must be the same version**.
-- Config: `/etc/gns3/gns3_server.conf` (see `setup/gns3_server.conf.example`).
-  Auth on; console ports 5000–5999.
+- `gns3server` **2.2.61** (`gns3-server` pkg, `resolute` build), `dynamips`
+  0.2.24, `ubridge` 1.0.1. Runs as the `systemd` unit `gns3server`, listening on
+  `0.0.0.0:3080`. **API is v2** (`/v2/version`) — not v3.
+- The GNS3 **GUI on the laptop must be exactly 2.2.61** (gns3.com → older releases).
+- Config: `/etc/gns3/gns3_server.conf` (`640 gns3:gns3` — read with `sudo`).
+  Auth on, user `gns3`; console ports 5000–5999.
+- Get the server password: `sudo grep '^password' /etc/gns3/gns3_server.conf`.
 
 ## Management network
 

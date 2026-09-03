@@ -1,5 +1,12 @@
-# Copy to /etc/netplan/99-br-gns3mgmt.yaml  (chmod 600), then: sudo netplan apply
 # Host-only management bridge for GNS3 lab devices. Not bridged to eno1.
+#
+# Install:  sudo install -m 600 br-gns3mgmt.yaml /etc/netplan/99-br-gns3mgmt.yaml
+# Apply:    sudo netplan try         <-- NEVER `netplan apply` on this SSH-only host
+#           (auto-rolls-back after 120s; press ENTER only once SSH still works)
+#
+# `netplan try` can still briefly bounce systemd-networkd and cause eno1 to
+# re-DHCP to a different address. Set a DHCP reservation for this host's MAC on
+# the router FIRST so the SSH IP cannot move.
 network:
   version: 2
   bridges:
