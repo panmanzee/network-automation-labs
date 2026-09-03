@@ -1,0 +1,19 @@
+---
+all:
+  vars:
+    # copied verbatim from ansible/connection.example.yml
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.ios.ios
+    ansible_user: automation
+    ansible_password: "{{ vault_device_password }}"
+    ansible_become: true
+    ansible_become_method: cisco.ios.enable
+    ansible_become_password: "{{ vault_device_password }}"
+    ansible_python_interpreter: auto_silent
+  children:
+    routers:
+      hosts:
+        R1:
+          ansible_host: 10.10.10.11
+        R2:
+          ansible_host: 10.10.10.12
