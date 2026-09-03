@@ -1,6 +1,14 @@
 ---
 extends: default
 rules:
+  # keep ansible-lint's embedded yamllint happy
+  comments-indentation: false
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+  # local relaxations
   line-length:
     max: 160
     level: warning
@@ -8,5 +16,3 @@ rules:
     allowed-values: ["true", "false"]
     check-keys: false
   document-start: disable
-  comments:
-    min-spaces-from-content: 1
