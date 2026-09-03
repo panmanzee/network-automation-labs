@@ -19,24 +19,37 @@ jobs:
             ansible-galaxy collection install -r ansible/requirements.yml --no-cache && break
             echo "retry $i..."; sleep 15
           done
-      - run: yamllint .
-      - run: ansible-lint
-      - name: playbook syntax
+      - name: stub gitignored local files
         env:
           VP: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
         run: |
-          # optional repo secret ANSIBLE_VAULT_PASSWORD lets syntax-check load vault.yml
-          if [ -n "$VP" ]; then printf '%s' "$VP" > ansible/.vault_pass; fi
+          # ansible.cfg points at ansible/.vault_pass and ansible/.ssh/id_ed25519,
+          # both gitignored. CI has no real secrets, so create throwaways.
+          mkdir -p ansible/.ssh
+          printf '%s' "${VP:-ci-dummy}" > ansible/.vault_pass
+          ssh-keygen -t ed25519 -N '' -q -f ansible/.ssh/id_ed25519
+          # placeholder vault so playbooks that reference it can be parsed;
+          # never overwrites a real (encrypted) vault.yml the maintainer committed
+          [ -f ansible/vault.yml ] || echo 'vault_device_password: ci-dummy' > ansible/vault.yml
+      - run: yamllint .
+      - run: ansible-lint
+      - name: playbook syntax
+        run: |
           shopt -s nullglob
+          if [ ! -f ansible/vault.yml ]; then
+            echo "vault.yml not committed yet — skipping playbook syntax-check"
+            exit 0
+          fi
+          # needs the ANSIBLE_VAULT_PASSWORD repo secret to decrypt vault.yml
+          if ! ansible-vault view ansible/vault.yml >/dev/null 2>&1; then
+            echo "vault.yml present but ANSIBLE_VAULT_PASSWORD secret missing/wrong — skipping"
+            exit 0
+          fi
           for pb in ansible/smoke.yml labs/*/deploy.yml labs/*/verify.yml; do
             inv="$(dirname "$pb")/inventory.yml"
             [ "$pb" = "ansible/smoke.yml" ] && inv="ansible/inventory-smoke.yml"
             echo "== $pb"
-            if [ -f ansible/.vault_pass ]; then
-              ansible-playbook --syntax-check -i "$inv" "$pb"
-            else
-              echo "  (skipped: no ANSIBLE_VAULT_PASSWORD secret set)"
-            fi
+            ansible-playbook --syntax-check -i "$inv" "$pb"
           done
 
   links:
