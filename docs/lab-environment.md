@@ -24,16 +24,24 @@ Laptop runs the GNS3 GUI (DHCP-reserved IP, e.g. `192.168.0.100`).
 
 ## Virtualization
 
-`grep -c -w vmx /proc/cpuinfo` = `<fill: 0 = VT-x off, use c3745+NM-16ESW switch
-fallback; >0 = IOSvL2 available>`.
+The host is administered over SSH with no physical/BIOS access, so VT-x cannot be
+enabled. `grep -c -w vmx /proc/cpuinfo` = `0`.
+
+**Consequence:** everything runs on **Dynamips only** (no KVM/QEMU-accelerated
+images). Routers = `c7200`; L2/L3 switching = `c3745` + `NM-16ESW` EtherSwitch
+module. IOSvL2 is not used. This covers all CCNA 200-301 switching topics
+(VLANs, trunking, STP, EtherChannel, SVIs, DHCP relay, HSRP) with the caveat
+that the c3745 runs IOS 12.4 and the EtherSwitch has 16 ports / no L3
+QoS features — acceptable for this portfolio.
 
 ## IOS images
 
 | File | MD5 | Role | GNS3 template | idle-PC |
 |------|-----|------|---------------|---------|
-| _(filled in Task 6–7)_ | | | | |
+| c7200 adventerprisek9 15.x `.image` | _(fill)_ | router | `c7200` | _(fill)_ |
+| c3745 12.4 `.image` | _(fill)_ | switch (NM-16ESW) | `c3745-esw` | _(fill)_ |
 
-Switch path in use: `<IOSvL2 | c3745+NM-16ESW>` — reason: `<VT-x availability>`.
+Switch path: **c3745 + NM-16ESW** (no VT-x — see Virtualization above).
 
 ## Toolchain verified
 
