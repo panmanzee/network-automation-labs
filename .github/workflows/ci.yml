@@ -13,7 +13,12 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install "ansible-core>=2.17" ansible-lint yamllint
-      - run: ansible-galaxy collection install -r ansible/requirements.yml
+      - name: install collections
+        run: |
+          for i in 1 2 3; do
+            ansible-galaxy collection install -r ansible/requirements.yml --no-cache && break
+            echo "retry $i..."; sleep 15
+          done
       - run: yamllint .
       - run: ansible-lint
       - name: playbook syntax
