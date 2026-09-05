@@ -1,55 +1,56 @@
 # Lab environment
 
-Host: `pan-homeserver`, Ubuntu Server, i5-4570T, 8 GB RAM. Administered over SSH
-only — no console/IPMI (see repo-root network-safety notes and `/home/pan/CLAUDE.md`).
-Laptop runs the GNS3 GUI at `192.168.0.100`.
+Host: `pan-homeserver`, Ubuntu Server, i5-4570T, 8 GB RAM. Administered over
+SSH only — no console/IPMI (see `/home/pan/CLAUDE.md` network-safety rules).
+Host IP: `192.168.0.101` (DHCP-reserved for MAC `00:23:24:77:4f:53`).
 
-**Host IP is not pinned** — `eno1` has been both `.101` and `.102` via DHCP. Set
-a router DHCP reservation for its MAC and use that address everywhere. Current: `192.168.0.101`.
+Docker is already installed and in use (newsfeed stack: postgres, n8n,
+newsfeed-api). Containerlab reuses the same Docker daemon; labs get their own
+isolated network and don't touch the newsfeed containers.
 
-## GNS3
+## Containerlab
 
-- `gns3server` **2.2.61** (`gns3-server` pkg, `resolute` build), `dynamips`
-  0.2.24, `ubridge` 1.0.1. Runs as the `systemd` unit `gns3server`, listening on
-  `0.0.0.0:3080`. **API is v2** (`/v2/version`) — not v3.
-- The GNS3 **GUI on the laptop must be exactly 2.2.61** (gns3.com → older releases).
-- Config: `/etc/gns3/gns3_server.conf` (`640 gns3:gns3` — read with `sudo`).
-  Auth on, user `gns3`; console ports 5000–5999.
-- Get the server password: `sudo grep '^password' /etc/gns3/gns3_server.conf`.
+- Installed as a single static Go binary in `~/.local/bin/containerlab` (no
+  sudo needed to install; `sudo` **is** needed to `deploy`/`destroy`, since
+  Containerlab creates network namespaces and veth pairs).
+- Version: _(filled in Task 8)_.
+- Every `deploy`/`destroy` is run by the human from the repo root, e.g.:
+  `sudo containerlab deploy -t smoke/topology.clab.yml`.
+
+## Arista cEOS-lab
+
+- Free image, registered at arista.com (Arista Portal → Software Download →
+  cEOS-lab). A personal email is normally accepted (purpose: "self-study").
+  **Never commit the image itself** — it's imported locally with `docker
+  import` and referenced by tag in each `topology.clab.yml`.
+- Version / imported tag: _(filled in Task 9)_.
+- ~85% CLI overlap with Cisco IOS for CCNA-relevant topics; VLANs, trunking,
+  RSTP, LACP, OSPF, ACLs, VRRP are all supported. NAT/PAT support is weak/absent
+  — see lab 04's README for how that's handled (future plan).
 
 ## Management network
 
-`br-gns3mgmt` — host-only bridge, `10.10.10.1/24`, applied via netplan
-(`setup/br-gns3mgmt.yaml` → `/etc/netplan/99-br-gns3mgmt.yaml`). Not bridged to
-`eno1`. Devices use `10.10.10.11+`.
+Containerlab's default `clab` Docker network, `172.20.20.0/24`. Each node in a
+`topology.clab.yml` pins a **static `mgmt-ipv4`** (`.11`, `.12`, …) so every
+lab's `inventory.yml` is stable. This network is host-local — not routable
+from the laptop, not reachable from the LAN — so it needs **no firewall
+change**; Ansible runs co-located on the mini PC.
 
-## Firewall
+## RAM budget
 
-`setup/ufw-rules.sh <LAPTOP_IP>` — allows 22 (SSH) from anywhere, and 3080 +
-5000-5999 only from the laptop.
+Each cEOS node gets an explicit `memory: 1024M` limit in its `topology.clab.yml`.
+Run **one lab at a time** — a 4-5 node lab is 4-5 GB, tight alongside the
+~0.7 GB newsfeed stack on 8 GB total. The heaviest labs (03, 05) should wait
+for a RAM upgrade (one free SODIMM slot, up to 16 GB total) if things feel tight.
 
-## Virtualization
+## GNS3 (retired)
 
-The host is administered over SSH with no physical/BIOS access, so VT-x cannot be
-enabled. `grep -c -w vmx /proc/cpuinfo` = `0`.
-
-**Consequence:** everything runs on **Dynamips only** (no KVM/QEMU-accelerated
-images). Routers = `c7200`; L2/L3 switching = `c3745` + `NM-16ESW` EtherSwitch
-module. IOSvL2 is not used. This covers all CCNA 200-301 switching topics
-(VLANs, trunking, STP, EtherChannel, SVIs, DHCP relay, HSRP) with the caveat
-that the c3745 runs IOS 12.4 and the EtherSwitch has 16 ports / no L3
-QoS features — acceptable for this portfolio.
-
-## IOS images
-
-| File | MD5 | Role | GNS3 template | idle-PC |
-|------|-----|------|---------------|---------|
-| c7200 adventerprisek9 15.x `.image` | _(fill)_ | router | `c7200` | _(fill)_ |
-| c3745 12.4 `.image` | _(fill)_ | switch (NM-16ESW) | `c3745-esw` | _(fill)_ |
-
-Switch path: **c3745 + NM-16ESW** (no VT-x — see Virtualization above).
+`gns3server` is stopped and disabled (`systemctl disable --now gns3server`) —
+package left installed, consumes no RAM. The old `br-gns3mgmt` bridge and its
+`ufw` rules are left in place (host-only, harmless; removing them would be a
+netplan change with no upside on an SSH-only host).
 
 ## Toolchain verified
 
-_(filled in Task 12 Step 7: date, gns3server version, GUI version, VT-x state,
-pubkey-SSH works?, `ansible-playbook smoke.yml` result)_
+_(filled in Task 12: date, Containerlab version, cEOS version/tag, smoke test
+result)_
