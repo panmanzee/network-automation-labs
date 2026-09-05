@@ -1,3 +1,7 @@
+# frr-lab node image: FRRouting + sshd + an `automation` user whose login shell
+# is vtysh, so a Containerlab node behaves like an SSH-managed router.
+# Build with docker/frr-lab/build.sh (do not `docker build` this dir directly —
+# the build context needs a pubkey that is not committed). Default tag frr-lab:local.
 ARG FRR_VERSION=10.7.1
 FROM quay.io/frrouting/frr:${FRR_VERSION}
 
