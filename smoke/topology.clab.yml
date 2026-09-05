@@ -1,0 +1,20 @@
+---
+name: smoke
+topology:
+  nodes:
+    frr1:
+      kind: linux
+      image: frr-ceoslike:local
+      mgmt-ipv4: 172.20.20.11
+      memory: 256M
+      binds:
+        - configs/bootstrap/frr1.conf:/etc/frr/frr.conf
+    frr2:
+      kind: linux
+      image: frr-ceoslike:local
+      mgmt-ipv4: 172.20.20.12
+      memory: 256M
+      binds:
+        - configs/bootstrap/frr2.conf:/etc/frr/frr.conf
+  links:
+    - endpoints: ["frr1:eth1", "frr2:eth1"]
