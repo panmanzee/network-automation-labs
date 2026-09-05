@@ -4,7 +4,7 @@
 
 Containerlab bind-mounts each node's `configs/bootstrap/<node>.conf` as
 `/etc/frr/frr.conf` (and, if present, `configs/daemons/<node>` as
-`/etc/frr/daemons`). The `frr-ceoslike` image already contains `sshd` and the
+`/etc/frr/daemons`). The `frr-lab` image already contains `sshd` and the
 `automation` user (SSH-key auth from `ansible/.ssh/id_ed25519.pub`, `vtysh`
 login shell). So the node is reachable over SSH — and answers on `vtysh` — the
 moment it boots. The bootstrap config carries only hostname,
@@ -29,7 +29,7 @@ reachability and end state are reproducible.
 
 ## Auth model
 
-**SSH public key only.** The `frr-ceoslike` image bakes
+**SSH public key only.** The `frr-lab` image bakes
 `ansible/.ssh/id_ed25519.pub` into `automation`'s `authorized_keys` and sets
 `vtysh` as its login shell. FRR nodes have no password and no enable secret in
 these labs, so there is no Ansible Vault and no `become` layer — the inventory
@@ -54,7 +54,7 @@ Because the FRR image is public and small, CI does more than parse files:
 - `yamllint`, `ansible-lint`, `ansible-playbook --syntax-check` on every
   playbook (well-formed).
 - `containerlab` schema/parse check of every `topology.clab.yml`.
-- **`deploy-smoke`**: builds the `frr-ceoslike` image, `containerlab deploy`s
+- **`deploy-smoke`**: builds the `frr-lab` image, `containerlab deploy`s
   the throwaway `smoke/` topology, runs `ansible-playbook smoke/smoke.yml`
   against the live nodes, and tears down — the toolchain actually converges in
   CI, not just "the YAML is valid".

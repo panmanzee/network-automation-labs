@@ -49,12 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: install containerlab
-        run: |
-          url=$(curl -s https://api.github.com/repos/srl-labs/containerlab/releases/latest \
-            | grep "browser_download_url.*linux_amd64.tar.gz" | cut -d '"' -f4)
-          curl -sL -o /tmp/containerlab.tar.gz "$url"
-          sudo tar -xzf /tmp/containerlab.tar.gz -C /usr/local/bin containerlab
-          containerlab version
+        run: bash -c "$(curl -sL https://get.containerlab.dev)"
       - name: validate topology files
         run: |
           shopt -s nullglob
@@ -84,14 +79,9 @@ jobs:
       - run: pip install "ansible-core>=2.17" ansible-pylibssh
       - run: ansible-galaxy collection install -r ansible/requirements.yml
       - name: throwaway keypair for CI
-        run: |
-          ssh-keygen -t ed25519 -N '' -q -f /tmp/ci_key
-          cp /tmp/ci_key.pub docker/frr-ceoslike/id_ed25519.pub
-      - name: build frr-ceoslike image
-        run: |
-          docker build -t frr-ceoslike:local \
-            --build-arg FRR_VERSION=10.7.1 docker/frr-ceoslike/
-          rm docker/frr-ceoslike/id_ed25519.pub
+        run: ssh-keygen -t ed25519 -N '' -q -f /tmp/ci_key
+      - name: build frr-lab image
+        run: docker/frr-lab/build.sh 10.7.1 /tmp/ci_key.pub
       - name: install containerlab
         run: bash -c "$(curl -sL https://get.containerlab.dev)"
       - name: deploy + smoke + destroy
