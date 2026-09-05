@@ -29,7 +29,7 @@ jobs:
       - name: playbook syntax
         run: |
           shopt -s nullglob
-          for pb in labs/*/deploy.yml labs/*/verify.yml; do
+          for pb in smoke/smoke.yml labs/*/deploy.yml labs/*/verify.yml; do
             inv="$(dirname "$pb")/inventory.yml"
             echo "== $pb"
             ansible-playbook --syntax-check -i "$inv" "$pb"
@@ -73,3 +73,33 @@ jobs:
           PY
             containerlab inspect -t "$f" >/dev/null 2>&1 || echo "  (containerlab inspect: informational only, non-fatal)"
           done
+
+  deploy-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "ansible-core>=2.17" ansible-pylibssh
+      - run: ansible-galaxy collection install -r ansible/requirements.yml
+      - name: throwaway keypair for CI
+        run: |
+          ssh-keygen -t ed25519 -N '' -q -f /tmp/ci_key
+          cp /tmp/ci_key.pub docker/frr-ceoslike/id_ed25519.pub
+      - name: build frr-ceoslike image
+        run: |
+          docker build -t frr-ceoslike:local \
+            --build-arg FRR_VERSION=10.7.1 docker/frr-ceoslike/
+          rm docker/frr-ceoslike/id_ed25519.pub
+      - name: install containerlab
+        run: bash -c "$(curl -sL https://get.containerlab.dev)"
+      - name: deploy + smoke + destroy
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: /tmp/ci_key
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          set -e
+          sudo containerlab deploy -t smoke/topology.clab.yml
+          ansible-playbook -i smoke/inventory.yml smoke/smoke.yml
+          sudo containerlab destroy -t smoke/topology.clab.yml --cleanup

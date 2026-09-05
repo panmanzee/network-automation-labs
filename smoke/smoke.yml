@@ -1,0 +1,35 @@
+---
+- name: Wait for FRR nodes to accept SSH
+  hosts: frr
+  gather_facts: false
+  tasks:
+    - name: Port 22 open
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 22
+        timeout: 60
+      delegate_to: localhost
+
+- name: Smoke test - reach every FRR node and read its version
+  hosts: frr
+  gather_facts: false
+  tasks:
+    - name: Show version
+      ansible.netcommon.cli_command:
+        command: show version
+      register: ver
+
+    - name: Assert FRR responded
+      ansible.builtin.assert:
+        that: "'FRRouting' in ver.stdout"
+        fail_msg: "{{ inventory_hostname }} did not return an FRRouting banner"
+        success_msg: "{{ inventory_hostname }} OK"
+
+    - name: Show interface brief (evidence)
+      ansible.netcommon.cli_command:
+        command: show interface brief
+      register: intf
+
+    - name: Print evidence
+      ansible.builtin.debug:
+        msg: "{{ intf.stdout_lines }}"
