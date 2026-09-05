@@ -2,58 +2,63 @@
 
 ## Bootstrap (the chicken-and-egg problem)
 
-Containerlab injects each node's `configs/startup/<node>.cfg` as its
-startup-config the moment it boots: hostname, the `automation` user with an
-SSH public key (from `ansible/.ssh/id_ed25519.pub`), `ip routing`, and the
-eAPI (`management api http-commands`) turned on — Containerlab's own
-readiness check for the `ceos` kind polls eAPI to know a node has finished
-booting. That's the whole job of the startup-config: get the node reachable
-over SSH. Everything else is Ansible.
+Containerlab bind-mounts each node's `configs/bootstrap/<node>.conf` as
+`/etc/frr/frr.conf` (and, if present, `configs/daemons/<node>` as
+`/etc/frr/daemons`). The `frr-ceoslike` image already contains `sshd` and the
+`automation` user (SSH-key auth from `ansible/.ssh/id_ed25519.pub`, `vtysh`
+login shell). So the node is reachable over SSH — and answers on `vtysh` — the
+moment it boots. The bootstrap config carries only hostname,
+`service integrated-vtysh-config`, and interface/loopback IPs; every protocol
+line is pushed afterward by Ansible. Both configs are version-controlled, so
+reachability and end state are reproducible.
 
 ## Per-lab flow
 
-1. `sudo containerlab deploy -t topology.clab.yml` — nodes boot, startup-config
-   applies, mgmt IPs come up.
+1. `sudo containerlab deploy -t topology.clab.yml` — nodes boot the bootstrap
+   config, mgmt IPs come up.
 2. `ansible-playbook -i inventory.yml deploy.yml` — pushes the full
-   `configs/<node>.cfg` via `arista.eos.eos_config`.
-3. Hands-on learning at the EOS CLI (`docker exec -it <node> Cli`) — this is
+   `configs/<node>.conf` via `ansible.netcommon.cli_config`.
+3. Hands-on learning at `vtysh` (`docker exec -it clab-<lab>-<node> vtysh`) —
    the point of the lab.
-4. `ansible-playbook -i inventory.yml verify.yml` — runs `arista.eos.eos_command`
-   and asserts the expected state, writing `output/*.txt`.
-5. `scripts/pull-configs.sh` — pulls `show running-config` back into
-   `configs/<node>.cfg` so committed config matches the live device.
+4. `ansible-playbook -i inventory.yml verify.yml` — runs
+   `ansible.netcommon.cli_command`, asserts the expected state, writes
+   `output/*.txt`.
+5. `scripts/pull-configs.sh` — `show running-config` back into
+   `configs/<node>.conf` so committed config matches the live device.
 6. `sudo containerlab destroy -t topology.clab.yml` — tear down, commit.
 
 ## Auth model
 
-**SSH public key is primary** — the same key (`ansible/.ssh/id_ed25519`) is
-baked into every node's startup-config via `username automation ssh-key
-<pubkey>`. The Ansible-Vault-encrypted `vault_device_password`
-(`ansible/vault.yml`) is the fallback and the `enable`/local-auth password
-used once a lab's `deploy.yml` sets the device's real `secret` — it is
-**never** placed in plaintext in a startup-config or any other committed
-file. The throwaway `smoke/` topology (proving the toolchain, not a real lab)
-skips the vault password entirely and authenticates purely by SSH key.
+**SSH public key only.** The `frr-ceoslike` image bakes
+`ansible/.ssh/id_ed25519.pub` into `automation`'s `authorized_keys` and sets
+`vtysh` as its login shell. FRR nodes have no password and no enable secret in
+these labs, so there is no Ansible Vault and no `become` layer — the inventory
+connection block is just `network_cli` + `frr.frr.frr` + `ansible_user:
+automation`.
 
-## Arista EOS vs Cisco IOS — CLI deltas that show up in this repo
+## FRR vtysh vs Cisco IOS — notes that show up in this repo
 
-- FHRP: **VRRP**, not HSRP (Cisco-proprietary, unsupported on EOS). VRRP is
-  also on the CCNA 200-301 blueprint.
-- `enable`/local-user password model: EOS's `secret 0|5|7 <password>` mirrors
-  IOS's `secret`, but the become plugin is `arista.eos.enable`
-  (not `cisco.ios.enable`).
-- `spanning-tree mode mstp` is EOS's default (IOS defaults to PVST+).
-- NAT/PAT on the device itself is weak/absent on cEOS — lab 04 shows the
-  concept on a Linux CPE (`iptables MASQUERADE`) instead; exam-CLI NAT is
-  drilled separately in Packet Tracer.
-- `show` commands, ACL syntax (`ip access-group`), and OSPF config are close
-  to identical between the two CLIs.
+- `service integrated-vtysh-config` writes one `/etc/frr/frr.conf`; there is no
+  `copy run start` / `write memory` split.
+- `do show …` works inside config mode, same as IOS.
+- BGP unnumbered (peer on an interface, IPv6 link-local next-hop) is the
+  FRR/Cumulus idiom used in lab 03 — no Cisco equivalent syntax.
+- No `enable secret` / privilege-level layer in these labs.
+- `show ip route`, `show ip ospf neighbor`, `show bgp summary` read almost
+  identically to IOS; route-maps and prefix-lists are near-identical.
 
-## What CI can and can't prove
+## What CI proves
 
-GitHub Actions has no cEOS image and can't run Containerlab deploys. CI
-proves the automation is **well-formed**: `yamllint`, `ansible-lint`, a
-parse/schema check of every `topology.clab.yml`, and
-`ansible-playbook --syntax-check` on every playbook. It cannot prove a lab
-actually reaches its target state — that's proven locally, once, when the
-lab is built, and the captured `output/verification.md` is the evidence.
+Because the FRR image is public and small, CI does more than parse files:
+
+- `yamllint`, `ansible-lint`, `ansible-playbook --syntax-check` on every
+  playbook (well-formed).
+- `containerlab` schema/parse check of every `topology.clab.yml`.
+- **`deploy-smoke`**: builds the `frr-ceoslike` image, `containerlab deploy`s
+  the throwaway `smoke/` topology, runs `ansible-playbook smoke/smoke.yml`
+  against the live nodes, and tears down — the toolchain actually converges in
+  CI, not just "the YAML is valid".
+
+Per-lab deploy-in-CI (running each real lab's `deploy.yml`/`verify.yml` against
+a live topology in Actions) is a Phase-2 item; for now each lab's
+`output/verification.md`, captured locally, is its evidence.
