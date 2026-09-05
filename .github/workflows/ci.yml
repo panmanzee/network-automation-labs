@@ -19,32 +19,16 @@ jobs:
             ansible-galaxy collection install -r ansible/requirements.yml --no-cache && break
             echo "retry $i..."; sleep 15
           done
-      - name: stub gitignored local files
-        env:
-          VP: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+      - name: stub gitignored local key
         run: |
-          # ansible.cfg points at ansible/.vault_pass and ansible/.ssh/id_ed25519,
-          # both gitignored. CI has no real secrets, so create throwaways.
+          # ansible.cfg points private_key_file at ansible/.ssh/id_ed25519 (gitignored).
           mkdir -p ansible/.ssh
-          printf '%s' "${VP:-ci-dummy}" > ansible/.vault_pass
           ssh-keygen -t ed25519 -N '' -q -f ansible/.ssh/id_ed25519
-          # placeholder vault so playbooks that reference it can be parsed;
-          # never overwrites a real (encrypted) vault.yml the maintainer committed
-          [ -f ansible/vault.yml ] || echo 'vault_device_password: ci-dummy' > ansible/vault.yml
       - run: yamllint .
       - run: ansible-lint
       - name: playbook syntax
         run: |
           shopt -s nullglob
-          if [ ! -f ansible/vault.yml ]; then
-            echo "vault.yml not committed yet — skipping playbook syntax-check"
-            exit 0
-          fi
-          # needs the ANSIBLE_VAULT_PASSWORD repo secret to decrypt vault.yml
-          if ! ansible-vault view ansible/vault.yml >/dev/null 2>&1; then
-            echo "vault.yml present but ANSIBLE_VAULT_PASSWORD secret missing/wrong — skipping"
-            exit 0
-          fi
           for pb in labs/*/deploy.yml labs/*/verify.yml; do
             inv="$(dirname "$pb")/inventory.yml"
             echo "== $pb"
