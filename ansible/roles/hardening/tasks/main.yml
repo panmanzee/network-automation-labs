@@ -1,8 +1,7 @@
 ---
-- name: Password + login hardening
-  cisco.ios.ios_config:
+- name: Logging hygiene
+  arista.eos.eos_config:
     lines:
-      - service password-encryption
-      - login block-for 60 attempts 3 within 30
       - logging buffered 32768 informational
+      - logging console warnings
     save_when: modified

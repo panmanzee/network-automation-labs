@@ -1,10 +1,15 @@
 ---
-- name: SSH v2 + local auth on VTY
-  cisco.ios.ios_config:
+- name: SSH management-plane access
+  arista.eos.eos_config:
+    parents: management ssh
     lines:
-      - ip ssh version 2
-      - line vty 0 4
-      - " login local"
-      - " transport input ssh"
-      - " exec-timeout 30 0"
+      - idle-timeout 15
+      - no shutdown
+    save_when: modified
+
+- name: Local AAA for login and enable
+  arista.eos.eos_config:
+    lines:
+      - aaa authentication login default local
+      - aaa authorization exec default local
     save_when: modified
