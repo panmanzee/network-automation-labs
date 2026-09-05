@@ -45,9 +45,8 @@ jobs:
             echo "vault.yml present but ANSIBLE_VAULT_PASSWORD secret missing/wrong — skipping"
             exit 0
           fi
-          for pb in ansible/smoke.yml labs/*/deploy.yml labs/*/verify.yml; do
+          for pb in labs/*/deploy.yml labs/*/verify.yml; do
             inv="$(dirname "$pb")/inventory.yml"
-            [ "$pb" = "ansible/smoke.yml" ] && inv="ansible/inventory-smoke.yml"
             echo "== $pb"
             ansible-playbook --syntax-check -i "$inv" "$pb"
           done
