@@ -1,34 +1,38 @@
 # Lab environment
 
-Host: `pan-homeserver`, Ubuntu Server, i5-4570T, 8 GB RAM. Administered over
-SSH only — no console/IPMI (see `/home/pan/CLAUDE.md` network-safety rules).
-Host IP: `192.168.0.101` (DHCP-reserved for MAC `00:23:24:77:4f:53`).
+Host: a headless Ubuntu Server mini-PC (Intel i5-4570T, 8 GB RAM), administered
+over SSH only — no console/IPMI. It sits on a DHCP-reserved LAN address. Docker
+is already installed and shared with other services on the box.
 
-Docker is already installed and in use (newsfeed stack: postgres, n8n,
-newsfeed-api). Containerlab reuses the same Docker daemon; labs get their own
-isolated network and don't touch the newsfeed containers. The `pan` user is in
-the `docker` group, so `docker` needs no `sudo`; `containerlab deploy/destroy`
-still does (it manipulates network namespaces).
+Containerlab reuses the same Docker daemon; labs get their own isolated network
+and don't touch the other containers. The lab user is in the `docker` group, so
+`docker` needs no `sudo`; `containerlab deploy/destroy` still does (it
+manipulates network namespaces).
 
 ## Containerlab
 
-- Installed as a single static Go binary in `~/.local/bin/containerlab`.
-- Version: `0.79.0`.
+- Installed with `bash -c "$(curl -sL https://get.containerlab.dev)"`.
+- Version: `0.79.0` (at time of writing).
 - Every `deploy`/`destroy` is run with `sudo` from the repo root, e.g.:
   `sudo containerlab deploy -t smoke/topology.clab.yml`.
 
 ## FRR node image
 
 Network nodes are Containerlab `kind: linux` running a small image built from
-`docker/frr-ceoslike/Dockerfile`: `quay.io/frrouting/frr:<version>` plus
+`docker/frr-lab/Dockerfile`: `quay.io/frrouting/frr:<version>` plus
 `openssh` and an `automation` user whose login shell is `vtysh`, so the node
 behaves like an SSH-managed router. **No image is committed** — it is built
-locally / in CI:
+locally / in CI with the helper script:
 
 ```bash
-docker build -t frr-ceoslike:local \
-  --build-arg FRR_VERSION=10.7.1 docker/frr-ceoslike/
+docker/frr-lab/build.sh            # tags frr-lab:local, FRR 10.7.1
+docker/frr-lab/build.sh 10.8.0     # or a specific FRR tag
 ```
+
+The script builds from a throwaway context so the SSH public key it bakes into
+`authorized_keys` (`ansible/.ssh/id_ed25519.pub`) is never copied next to the
+Dockerfile — don't `docker build docker/frr-lab/` directly, it has no pubkey in
+context and fails.
 
 - FRR base version: pinned via the Dockerfile `ARG FRR_VERSION` (default
   `10.7.1`); override with `--build-arg FRR_VERSION=<tag>` for a different

@@ -40,7 +40,7 @@ and data-center network engineering job requirements._
 ## How it works
 
 - **Containerlab** builds each lab's topology from `topology.clab.yml` using a
-  repo-built FRR image (`docker/frr-ceoslike/`); nodes boot with a minimal
+  repo-built FRR image (`docker/frr-lab/`); nodes boot with a minimal
   bind-mounted `frr.conf` and are SSH-reachable immediately.
 - Everything past "reachable over SSH" is **Ansible** (`frr.frr` +
   `ansible.netcommon`, `network_cli`, SSH-key auth) — `deploy.yml` pushes the
@@ -57,6 +57,13 @@ deploy -t labs/<lab>/topology.clab.yml`, `ansible-playbook -i
 labs/<lab>/inventory.yml labs/<lab>/deploy.yml`, `ansible-playbook -i
 labs/<lab>/inventory.yml labs/<lab>/verify.yml`.
 
+Until the first lab lands, the [`smoke/`](smoke/) topology is the
+runnable-today proof of the toolchain: `docker/frr-lab/build.sh && sudo
+containerlab deploy -t smoke/topology.clab.yml && ansible-playbook -i
+smoke/inventory.yml smoke/smoke.yml`.
+
 ## License
 
-MIT for scripts, playbooks and the Dockerfile; CC-BY-4.0 for the written lab guides.
+MIT for scripts, playbooks and the Dockerfile; CC-BY-4.0 for the written lab
+guides (everything under [`docs/`](docs/) and each lab's `README.md`). Full MIT
+text in [`LICENSE`](LICENSE).
