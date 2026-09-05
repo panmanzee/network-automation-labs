@@ -61,5 +61,8 @@ them would be a netplan change with no upside on an SSH-only host).
 
 ## Toolchain verified
 
-_(filled in after the smoke test passes in CI: date, Containerlab version, FRR
-version, smoke result)_
+- **2026-09-05**: CI `deploy-smoke` — `containerlab deploy -t
+  smoke/topology.clab.yml` → `ansible-playbook smoke/smoke.yml` → `frr1 OK` /
+  `frr2 OK` → `containerlab destroy --cleanup`. FRR version `10.7.1`,
+  Containerlab `0.79.0`, driven over `ansible.netcommon.network_cli` +
+  `frr.frr.frr` into `vtysh`. Toolchain proven end-to-end in GitHub Actions.
