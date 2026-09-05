@@ -1,14 +1,15 @@
 ---
-# Reference block. Every labs/*/inventory.yml and ansible/inventory-smoke.yml
-# copies these keys verbatim under `all: vars:`.
-# vault_device_password comes from ansible/vault.yml via each playbook's vars_files.
+# Reference block. Every labs/*/inventory.yml copies these keys verbatim
+# under `all: vars:`. vault_device_password comes from ansible/vault.yml via
+# each playbook's vars_files. smoke/inventory.yml (Task 10) is simpler — it
+# authenticates by SSH key alone and doesn't need this block or the vault.
 all:
   vars:
     ansible_connection: ansible.netcommon.network_cli
-    ansible_network_os: cisco.ios.ios
+    ansible_network_os: arista.eos.eos
     ansible_user: automation
     ansible_password: "{{ vault_device_password }}"
     ansible_become: true
-    ansible_become_method: cisco.ios.enable
+    ansible_become_method: arista.eos.enable
     ansible_become_password: "{{ vault_device_password }}"
     ansible_python_interpreter: auto_silent
