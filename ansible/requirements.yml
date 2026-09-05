@@ -4,5 +4,3 @@ collections:
     version: ">=2.0.0"
   - name: ansible.netcommon
     version: ">=6.0.0"
-  - name: community.general  # provides ansible.cfg's `yaml` stdout callback
-    version: ">=8.0.0"
