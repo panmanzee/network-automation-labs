@@ -1,8 +1,0 @@
----
-- name: Baseline EOS hygiene
-  arista.eos.eos_config:
-    lines:
-      - no ip domain-lookup
-      - ip domain-name lab.local
-      - spanning-tree mode mstp
-    save_when: modified

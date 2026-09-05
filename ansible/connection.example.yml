@@ -1,15 +1,12 @@
 ---
-# Reference block. Every labs/*/inventory.yml copies these keys verbatim
-# under `all: vars:`. vault_device_password comes from ansible/vault.yml via
-# each playbook's vars_files. smoke/inventory.yml (Task 10) is simpler — it
-# authenticates by SSH key alone and doesn't need this block or the vault.
+# Reference block. Every labs/*/inventory.yml and smoke/inventory.yml copies
+# these keys verbatim under `all: vars:`. Auth is SSH public key only
+# (ansible/.ssh/id_ed25519, set by ansible.cfg's private_key_file) — FRR nodes
+# have no password and vtysh is already privileged for the login user, so there
+# is no vault and no become layer.
 all:
   vars:
     ansible_connection: ansible.netcommon.network_cli
-    ansible_network_os: arista.eos.eos
+    ansible_network_os: frr.frr.frr
     ansible_user: automation
-    ansible_password: "{{ vault_device_password }}"
-    ansible_become: true
-    ansible_become_method: arista.eos.enable
-    ansible_become_password: "{{ vault_device_password }}"
     ansible_python_interpreter: auto_silent

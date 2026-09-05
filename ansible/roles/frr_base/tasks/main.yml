@@ -1,0 +1,8 @@
+---
+- name: Base FRR hygiene
+  ansible.netcommon.cli_config:
+    config: |
+      service integrated-vtysh-config
+      log syslog informational
+      ip forwarding
+      ipv6 forwarding

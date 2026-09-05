@@ -1,7 +1,0 @@
----
-- name: Logging hygiene
-  arista.eos.eos_config:
-    lines:
-      - logging buffered 32768 informational
-      - logging console warnings
-    save_when: modified
