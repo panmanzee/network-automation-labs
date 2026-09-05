@@ -33,3 +33,35 @@
     - name: Print evidence
       ansible.builtin.debug:
         msg: "{{ intf.stdout_lines }}"
+
+    # F2: exercise the config-PUSH path (the one deploy.yml uses), not just reads.
+    # `ip forwarding` is harmless and idempotent. FRR doesn't persist it to
+    # running-config, so cli_config always reports changed - don't assert on that,
+    # just prove the push path itself works.
+    - name: Push a harmless config line (proves the cli_config path)
+      ansible.netcommon.cli_config:
+        config: ip forwarding
+      register: push
+      failed_when: push.failed | default(false)
+
+    - name: Assert the config push did not fail
+      ansible.builtin.assert:
+        that: not (push.failed | default(false))
+        fail_msg: "{{ inventory_hostname }}: cli_config push failed"
+        success_msg: "{{ inventory_hostname }}: cli_config push OK"
+
+    # F3: prove the veth link + bootstrap addressing actually work end to end.
+    - name: Ping the other end of the eth1 /31 link
+      ansible.netcommon.cli_command:
+        command: "ping {{ peer_ip }} source {{ link_ip }} count 2"
+      register: linkping
+
+    - name: Assert the link is up (2/2 replies)
+      ansible.builtin.assert:
+        that:
+          - "'2 received' in linkping.stdout or '2 packets received' in linkping.stdout"
+          - "'0% packet loss' in linkping.stdout"
+        fail_msg: >-
+          {{ inventory_hostname }}: ping {{ peer_ip }} across eth1 failed -
+          link or bootstrap config is broken. Output: {{ linkping.stdout }}
+        success_msg: "{{ inventory_hostname }}: link to {{ peer_ip }} up (2/2)"
