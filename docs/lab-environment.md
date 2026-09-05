@@ -27,12 +27,14 @@ locally / in CI:
 
 ```bash
 docker build -t frr-ceoslike:local \
-  --build-arg FRR_VERSION=<version> docker/frr-ceoslike/
+  --build-arg FRR_VERSION=10.7.1 docker/frr-ceoslike/
 ```
 
-- FRR base version: `<version>` — pinned via the Dockerfile `ARG FRR_VERSION`
-  (set below once the image is first built).
-- Version in use: _(filled in Task 2)_.
+- FRR base version: pinned via the Dockerfile `ARG FRR_VERSION` (default
+  `10.7.1`); override with `--build-arg FRR_VERSION=<tag>` for a different
+  `quay.io/frrouting/frr` tag.
+- Version in use: `10.7.1` (newest stable `10.x` on quay.io as of 2026-09-05;
+  `10.3` from the original plan no longer has a published tag).
 - FRR's `vtysh` CLI is Cisco-IOS-like for routing; per-lab READMEs note the
   deltas (`service integrated-vtysh-config` instead of `copy run start`, BGP
   unnumbered idiom, no `enable secret` layer, some `show` differences).
