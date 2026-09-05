@@ -60,3 +60,33 @@ jobs:
         with:
           args: "--no-progress --exclude-loopback './**/*.md'"
           fail: true
+
+  topology:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install containerlab
+        run: |
+          url=$(curl -s https://api.github.com/repos/srl-labs/containerlab/releases/latest \
+            | grep "browser_download_url.*linux_amd64.tar.gz" | cut -d '"' -f4)
+          curl -sL -o /tmp/containerlab.tar.gz "$url"
+          sudo tar -xzf /tmp/containerlab.tar.gz -C /usr/local/bin containerlab
+          containerlab version
+      - name: validate topology files
+        run: |
+          shopt -s nullglob
+          pip install -q pyyaml
+          for f in smoke/*.clab.yml labs/*/topology.clab.yml; do
+            echo "== $f"
+            python3 - "$f" <<'PY'
+          import sys, yaml
+          f = sys.argv[1]
+          d = yaml.safe_load(open(f))
+          assert "name" in d, f"{f}: missing top-level 'name'"
+          assert "topology" in d and "nodes" in d["topology"], f"{f}: missing topology.nodes"
+          for node, spec in d["topology"]["nodes"].items():
+              assert "kind" in spec, f"{f}: node {node} missing 'kind'"
+          print("OK", f)
+          PY
+            containerlab inspect -t "$f" >/dev/null 2>&1 || echo "  (containerlab inspect: informational only, non-fatal)"
+          done
