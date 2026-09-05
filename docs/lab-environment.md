@@ -13,7 +13,7 @@ isolated network and don't touch the newsfeed containers.
 - Installed as a single static Go binary in `~/.local/bin/containerlab` (no
   sudo needed to install; `sudo` **is** needed to `deploy`/`destroy`, since
   Containerlab creates network namespaces and veth pairs).
-- Version: _(filled in Task 8)_.
+- Version: `0.79.0`.
 - Every `deploy`/`destroy` is run by the human from the repo root, e.g.:
   `sudo containerlab deploy -t smoke/topology.clab.yml`.
 
