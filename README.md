@@ -105,3 +105,4 @@ ansible-playbook -i smoke/inventory.yml smoke/smoke.yml
 MIT for scripts, playbooks and the Dockerfile; CC-BY-4.0 for the written lab
 guides (everything under [`docs/`](docs/) and each lab's `README.md`). Full MIT
 text in [`LICENSE`](LICENSE).
+
