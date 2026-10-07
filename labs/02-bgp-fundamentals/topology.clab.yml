@@ -1,0 +1,58 @@
+---
+name: bgp02
+mgmt:
+  network: clab-mgmt
+  ipv4-subnet: 172.30.30.0/24
+topology:
+  nodes:
+    r1:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.31
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r1.conf:/etc/frr/frr.conf"
+    r2:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.32
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r2.conf:/etc/frr/frr.conf"
+    r3:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.33
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r3.conf:/etc/frr/frr.conf"
+    r4:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.34
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r4.conf:/etc/frr/frr.conf"
+    r5:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.35
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r5.conf:/etc/frr/frr.conf"
+  links:
+    - endpoints: ["r1:eth1", "r2:eth1"]   # eBGP  AS65001 - AS65100
+    - endpoints: ["r1:eth2", "r4:eth1"]   # eBGP  AS65001 - AS65100 (second path)
+    - endpoints: ["r2:eth2", "r3:eth1"]   # iBGP core
+    - endpoints: ["r3:eth2", "r4:eth2"]   # iBGP core
+    - endpoints: ["r4:eth3", "r5:eth1"]   # eBGP  AS65100 - AS65002

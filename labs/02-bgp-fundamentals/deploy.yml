@@ -1,0 +1,29 @@
+---
+- name: Wait for the routers to accept SSH
+  hosts: frr
+  gather_facts: false
+  tasks:
+    - name: Port 22 open
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 22
+        timeout: 60
+      delegate_to: localhost
+
+- name: Lab 02 - configure BGP (eBGP, iBGP, route reflector, policy)
+  hosts: frr
+  gather_facts: false
+  tasks:
+    - name: Base FRR hygiene
+      ansible.builtin.include_role:
+        name: frr_base
+
+    - name: Push the OSPF underlay + BGP config rendered from the template
+      ansible.netcommon.cli_config:
+        config: "{{ lookup('ansible.builtin.template', 'bgp.conf.j2') }}"
+      register: push
+
+    - name: Show what was pushed
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} (AS {{ asn }}): BGP config applied"
+      when: push is not failed

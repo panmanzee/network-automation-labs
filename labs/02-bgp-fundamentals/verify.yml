@@ -1,0 +1,57 @@
+---
+- name: Lab 02 - verify BGP
+  hosts: frr
+  gather_facts: false
+  tasks:
+    - name: Wait until every BGP session is Established
+      ansible.netcommon.cli_command:
+        command: show bgp summary json
+      register: summary
+      until: >-
+        (summary.stdout | from_json).ipv4Unicast.peers | dict2items
+        | selectattr('value.state', 'equalto', 'Established') | list | length == expect_established
+      retries: 30
+      delay: 5
+
+    - name: Read the BGP table
+      ansible.netcommon.cli_command:
+        command: show ip bgp
+      register: bgp_table
+
+    - name: Filtered / aggregated-away prefixes are absent
+      ansible.builtin.assert:
+        that: "item not in bgp_table.stdout"
+        fail_msg: "{{ inventory_hostname }}: {{ item }} should NOT be in the BGP table"
+        success_msg: "{{ inventory_hostname }}: {{ item }} correctly absent"
+      loop: "{{ expect_absent | default([]) }}"
+
+    - name: Read the detail for each prefix we check
+      ansible.netcommon.cli_command:
+        command: "show ip bgp {{ item.prefix }} json"
+      register: detail
+      loop: "{{ expect_best | default([]) }}"
+      loop_control:
+        label: "{{ item.prefix }}"
+
+    - name: Best path is the one the policy should pick
+      vars:
+        j: "{{ item.stdout | from_json }}"
+        best: "{{ j.paths | selectattr('bestpath', 'defined') | first }}"
+      ansible.builtin.assert:
+        that:
+          - best.nexthops[0].ip == item.item.nexthop | default(best.nexthops[0].ip)
+          - best.locPrf | default(100) == item.item.locpref | default(best.locPrf | default(100))
+          - item.item.community | default('') in (best.community.string | default(''))
+          - item.item.aspath | default(best.aspath.string) == best.aspath.string
+          - (not item.item.reflected | default(false)) or (best.clusterList is defined)
+        fail_msg: >-
+          {{ inventory_hostname }}: {{ item.item.prefix }} best path is
+          nexthop {{ best.nexthops[0].ip }}, local-pref {{ best.locPrf | default('n/a') }},
+          as-path {{ best.aspath.string }} - not what the policy intends
+        success_msg: >-
+          {{ inventory_hostname }}: {{ item.item.prefix }} -> nexthop {{ best.nexthops[0].ip }},
+          local-pref {{ best.locPrf | default(100) }}, as-path {{ best.aspath.string }}
+          ({{ best.bestpath.selectionReason | default('only path') }})
+      loop: "{{ detail.results }}"
+      loop_control:
+        label: "{{ item.item.prefix }}"

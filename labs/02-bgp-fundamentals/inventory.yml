@@ -1,0 +1,90 @@
+---
+all:
+  vars:
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: frr.frr.frr
+    ansible_user: automation
+    ansible_python_interpreter: auto_silent
+  children:
+    frr:
+      hosts:
+        # ---- AS 65001: customer A, dual-homed to r2 and r4 -------------------
+        r1:
+          ansible_host: 172.30.30.31
+          asn: 65001
+          router_id: 10.255.1.1
+          static_blackholes: [198.51.100.0/24, 10.99.0.0/24]
+          networks: [198.51.100.0/24, 10.99.0.0/24]   # 10.99.0.0/24 is a "mistake" the ISP must filter
+          ebgp_neighbors:
+            - {ip: 10.2.10.1, asn: 65100}
+            - {ip: 10.2.11.1, asn: 65100}
+          expect_established: 2
+          expect_best:
+            - {prefix: 203.0.113.0/24, aspath: "65100"}
+          expect_absent: [203.0.113.0/25, 203.0.113.128/25]   # r4 aggregates them away
+        # ---- AS 65100: the ISP core (OSPF underlay, iBGP, route reflector) ----
+        r2:
+          ansible_host: 172.30.30.32
+          asn: 65100
+          router_id: 10.255.2.2
+          ospf_interfaces: [lo, eth2]
+          prefix_lists:
+            - ip prefix-list CUST-A seq 5 permit 198.51.100.0/24
+          route_maps:
+            - {name: FROM-CUST-A, lines: [match ip address prefix-list CUST-A, set community 65100:100, set local-preference 100]}
+          ebgp_neighbors:
+            - {ip: 10.2.10.0, asn: 65001, map_in: FROM-CUST-A}
+          ibgp_neighbors:
+            - {ip: 10.255.3.3}
+          expect_established: 2
+          expect_best:           # r4's local-pref 200 wins over r2's own direct path (100), via the reflector
+            - {prefix: 198.51.100.0/24, nexthop: 10.255.4.4, locpref: 200, community: "65100:100", reflected: true}
+          expect_absent: [10.99.0.0/24, 203.0.113.0/25]
+        r3:
+          ansible_host: 172.30.30.33
+          asn: 65100
+          router_id: 10.255.3.3
+          ospf_interfaces: [lo, eth1, eth2]
+          ibgp_neighbors:                       # route reflector: r2 and r4 are its clients
+            - {ip: 10.255.2.2, rr_client: true}
+            - {ip: 10.255.4.4, rr_client: true}
+          expect_established: 2
+          expect_best:
+            - {prefix: 198.51.100.0/24, nexthop: 10.255.4.4, locpref: 200, community: "65100:100"}
+            - {prefix: 203.0.113.0/24, nexthop: 10.255.4.4}
+          expect_absent: [10.99.0.0/24, 203.0.113.0/25, 203.0.113.128/25]
+        r4:
+          ansible_host: 172.30.30.34
+          asn: 65100
+          router_id: 10.255.4.4
+          ospf_interfaces: [lo, eth2]
+          prefix_lists:
+            - ip prefix-list CUST-A seq 5 permit 198.51.100.0/24
+            - ip prefix-list CUST-B seq 5 permit 203.0.113.0/24 le 25
+          route_maps:
+            # r4 is the preferred exit for customer A: local-preference 200 beats r2's 100
+            - {name: FROM-CUST-A, lines: [match ip address prefix-list CUST-A, set community 65100:100, set local-preference 200]}
+            - {name: FROM-CUST-B, lines: [match ip address prefix-list CUST-B, set community 65100:200]}
+          ebgp_neighbors:
+            - {ip: 10.2.11.0, asn: 65001, map_in: FROM-CUST-A}
+            - {ip: 10.2.14.1, asn: 65002, map_in: FROM-CUST-B}
+          ibgp_neighbors:
+            - {ip: 10.255.3.3}
+          bgp_router_lines:
+            - aggregate-address 203.0.113.0/24 summary-only    # hides the two /25s from the core
+          expect_established: 3
+          expect_best:
+            - {prefix: 198.51.100.0/24, nexthop: 10.2.11.0, locpref: 200, community: "65100:100"}
+          expect_absent: [10.99.0.0/24]
+        # ---- AS 65002: customer B -------------------------------------------
+        r5:
+          ansible_host: 172.30.30.35
+          asn: 65002
+          router_id: 10.255.5.5
+          static_blackholes: [203.0.113.0/25, 203.0.113.128/25]
+          networks: [203.0.113.0/25, 203.0.113.128/25]
+          ebgp_neighbors:
+            - {ip: 10.2.14.0, asn: 65100}
+          expect_established: 1
+          expect_best:
+            - {prefix: 198.51.100.0/24, aspath: "65100 65001"}

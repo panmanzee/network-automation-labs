@@ -1,0 +1,60 @@
+{# Rendered per router from inventory.yml. Pushed with cli_config. #}
+{% for p in static_blackholes | default([]) %}
+ip route {{ p }} blackhole
+{% endfor %}
+{% for l in prefix_lists | default([]) %}
+{{ l }}
+{% endfor %}
+{% for rm in route_maps | default([]) %}
+route-map {{ rm.name }} permit 10
+{% for l in rm.lines %}
+ {{ l }}
+{% endfor %}
+exit
+{% endfor %}
+{% if ospf_interfaces is defined %}
+{% for i in ospf_interfaces %}
+interface {{ i }}
+ ip ospf area 0
+{% if i != 'lo' %}
+ ip ospf network point-to-point
+ ip ospf dead-interval minimal hello-multiplier 3
+{% endif %}
+exit
+{% endfor %}
+router ospf
+ ospf router-id {{ router_id }}
+exit
+{% endif %}
+router bgp {{ asn }}
+ bgp router-id {{ router_id }}
+ no bgp ebgp-requires-policy
+{% for n in ebgp_neighbors | default([]) %}
+ neighbor {{ n.ip }} remote-as {{ n.asn }}
+{% endfor %}
+{% for n in ibgp_neighbors | default([]) %}
+ neighbor {{ n.ip }} remote-as {{ asn }}
+ neighbor {{ n.ip }} update-source lo
+{% endfor %}
+ address-family ipv4 unicast
+{% for p in networks | default([]) %}
+  network {{ p }}
+{% endfor %}
+{% for l in bgp_router_lines | default([]) %}
+  {{ l }}
+{% endfor %}
+{% for n in ebgp_neighbors | default([]) %}
+{% if n.map_in is defined %}
+  neighbor {{ n.ip }} route-map {{ n.map_in }} in
+{% endif %}
+{% endfor %}
+{% for n in ibgp_neighbors | default([]) %}
+  neighbor {{ n.ip }} send-community
+{% if n.rr_client | default(false) %}
+  neighbor {{ n.ip }} route-reflector-client
+{% elif ebgp_neighbors is defined %}
+  neighbor {{ n.ip }} next-hop-self
+{% endif %}
+{% endfor %}
+ exit-address-family
+exit
