@@ -12,3 +12,5 @@ __pycache__/
 .venv/
 *.swp
 .DS_Store
+clab-*/
+.clab*

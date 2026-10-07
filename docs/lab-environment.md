@@ -45,7 +45,7 @@ context and fails.
 
 ## Management network
 
-Containerlab's default `clab` Docker network, `172.20.20.0/24`. Each node in a
+A dedicated Containerlab Docker network (`clab-mgmt`), `172.30.30.0/24`. Each node in a
 `topology.clab.yml` pins a static `mgmt-ipv4` (`.11`, `.12`, …) so every lab's
 `inventory.yml` is stable. Host-local — not routable from the laptop or LAN —
 so it needs no firewall change; Ansible runs co-located on the mini PC.
