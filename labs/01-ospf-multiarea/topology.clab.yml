@@ -1,0 +1,57 @@
+---
+name: ospf01
+mgmt:
+  network: clab-mgmt
+  ipv4-subnet: 172.30.30.0/24
+topology:
+  nodes:
+    r1:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.21
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r1.conf:/etc/frr/frr.conf"
+    r2:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.22
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r2.conf:/etc/frr/frr.conf"
+    r3:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.23
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r3.conf:/etc/frr/frr.conf"
+    r4:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.24
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r4.conf:/etc/frr/frr.conf"
+    r5:
+      kind: linux
+      image: frr-lab:local
+      mgmt-ipv4: 172.30.30.25
+      memory: 256M
+      exec:
+        - ip route del default
+      binds:
+        - "configs/bootstrap/r5.conf:/etc/frr/frr.conf"
+  links:
+    - endpoints: ["r1:eth1", "r2:eth1"]   # area 1
+    - endpoints: ["r2:eth2", "r3:eth1"]   # area 0
+    - endpoints: ["r3:eth2", "r4:eth1"]   # area 0
+    - endpoints: ["r4:eth2", "r5:eth1"]   # area 2 (totally stubby)

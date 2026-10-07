@@ -1,0 +1,23 @@
+{# Rendered per router from inventory.yml. Pushed with cli_config. #}
+{% for line in ospf_pre_lines | default([]) %}
+{{ line }}
+{% endfor %}
+{% for i in ospf_interfaces %}
+interface {{ i.name }}
+ ip ospf area {{ i.area }}
+{% if i.name != 'lo' %}
+ ip ospf network point-to-point
+ ip ospf dead-interval minimal hello-multiplier 3
+{% endif %}
+{% if i.md5 | default(false) %}
+ ip ospf authentication message-digest
+ ip ospf message-digest-key 1 md5 {{ ospf_md5_key }}
+{% endif %}
+exit
+{% endfor %}
+router ospf
+ ospf router-id {{ router_id }}
+{% for line in ospf_router_lines %}
+ {{ line }}
+{% endfor %}
+exit

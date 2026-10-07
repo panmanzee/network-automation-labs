@@ -1,0 +1,83 @@
+---
+all:
+  vars:
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: frr.frr.frr
+    ansible_user: automation
+    ansible_python_interpreter: auto_silent
+    # Lab-only throwaway key for OSPF MD5 on the backbone. Not a real secret.
+    ospf_md5_key: LAB-ONLY-KEY
+  children:
+    frr:
+      hosts:
+        r1:
+          ansible_host: 172.30.30.21
+          router_id: 10.255.1.1
+          ospf_interfaces:
+            - {name: lo, area: 1}
+            - {name: eth1, area: 1}
+          ospf_router_lines: []
+          expect_neighbors: 1
+          expect_routes:                     # (type, prefix) that must be in `show ip ospf route`
+            - {kind: "N IA", prefix: "10.1.5.1/32"}
+            - {kind: "N E2", prefix: "192.0.2.0/24"}
+        r2:
+          ansible_host: 172.30.30.22
+          router_id: 10.255.2.2
+          ospf_interfaces:
+            - {name: lo, area: 0}
+            - {name: eth1, area: 1}
+            - {name: eth2, area: 0, md5: true}
+          ospf_router_lines:
+            - area 1 range 10.1.0.0/22        # ABR: summarise area 1 LANs into the backbone
+          expect_neighbors: 2
+          expect_routes:
+            - {kind: "N", prefix: "10.1.1.1/32"}
+            - {kind: "N", prefix: "10.1.2.1/32"}
+            - {kind: "N IA", prefix: "10.1.5.1/32"}
+        r3:
+          ansible_host: 172.30.30.23
+          router_id: 10.255.3.3
+          ospf_pre_lines:
+            - ip route 192.0.2.0/24 blackhole   # stand-in for an "external" network
+          ospf_interfaces:
+            - {name: lo, area: 0}
+            - {name: eth1, area: 0, md5: true}
+            - {name: eth2, area: 0, md5: true}
+          ospf_router_lines:
+            - redistribute static metric-type 2  # ASBR: makes an LSA type 5
+          expect_neighbors: 2
+          expect_routes:
+            - {kind: "N IA", prefix: "10.1.0.0/22"}     # the summary, not the host routes
+            - {kind: "N IA", prefix: "10.1.5.1/32"}
+          expect_absent:                     # hidden inside the 10.1.0.0/22 summary
+            - "10.1.1.1/32"
+            - "10.1.2.1/32"
+        r4:
+          ansible_host: 172.30.30.24
+          router_id: 10.255.4.4
+          ospf_interfaces:
+            - {name: lo, area: 0}
+            - {name: eth1, area: 0, md5: true}
+            - {name: eth2, area: 2}
+          ospf_router_lines:
+            - area 2 stub no-summary          # ABR: totally stubby area, default route only
+          expect_neighbors: 2
+          expect_routes:
+            - {kind: "N IA", prefix: "10.1.0.0/22"}
+            - {kind: "N E2", prefix: "192.0.2.0/24"}
+        r5:
+          ansible_host: 172.30.30.25
+          router_id: 10.255.5.5
+          ospf_interfaces:
+            - {name: lo, area: 2}
+            - {name: eth1, area: 2}
+          ospf_router_lines:
+            - area 2 stub
+          expect_neighbors: 1
+          expect_routes:
+            - {kind: "N IA", prefix: "0.0.0.0/0"}   # the default route the ABR injects
+          expect_absent:                           # a totally stubby area hides all of these
+            - "10.1.0.0/22"
+            - "10.1.1.1/32"
+            - "192.0.2.0/24"

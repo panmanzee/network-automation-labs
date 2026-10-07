@@ -1,0 +1,67 @@
+---
+- name: Lab 01 - verify OSPF multi-area
+  hosts: frr
+  gather_facts: false
+  tasks:
+    - name: Wait until every expected neighbour is Full
+      ansible.netcommon.cli_command:
+        command: show ip ospf neighbor
+      register: nbr
+      until: nbr.stdout.split('\n') | select('search', 'Full/') | list | length == expect_neighbors
+      retries: 30
+      delay: 5
+
+    - name: Read the OSPF route table
+      ansible.netcommon.cli_command:
+        command: show ip ospf route
+      register: ospf_routes
+
+    - name: Expected routes are present (right LSA type)
+      ansible.builtin.assert:
+        that: >-
+          ospf_routes.stdout is regex('(?m)^' ~ item.kind ~ '\s+' ~ (item.prefix | regex_escape) ~ '\s')
+        fail_msg: "{{ inventory_hostname }}: missing {{ item.kind }} {{ item.prefix }}"
+        success_msg: "{{ inventory_hostname }}: has {{ item.kind }} {{ item.prefix }}"
+      loop: "{{ expect_routes | default([]) }}"
+
+    - name: Hidden routes are absent (summarisation / stub area working)
+      ansible.builtin.assert:
+        that: >-
+          ospf_routes.stdout is not regex('(?m)^N( IA| E2)?\s+' ~ (item | regex_escape) ~ '\s')
+        fail_msg: "{{ inventory_hostname }}: {{ item }} should NOT be visible here"
+        success_msg: "{{ inventory_hostname }}: {{ item }} correctly hidden"
+      loop: "{{ expect_absent | default([]) }}"
+
+    - name: Read the backbone interface details
+      ansible.netcommon.cli_command:
+        command: "show ip ospf interface {{ item.name }}"
+      register: ifaces
+      loop: "{{ ospf_interfaces | selectattr('md5', 'defined') | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: MD5 authentication is active on backbone links
+      ansible.builtin.assert:
+        that: "'Cryptographic authentication enabled' in item.stdout"
+        fail_msg: "{{ inventory_hostname }}: MD5 not active on {{ item.item.name }}"
+        success_msg: "{{ inventory_hostname }}: MD5 active on {{ item.item.name }}"
+      loop: "{{ ifaces.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+- name: Lab 01 - end-to-end reachability across all three areas
+  hosts: r1
+  gather_facts: false
+  tasks:
+    - name: Ping r5's LAN address from r1's LAN address
+      ansible.netcommon.cli_command:
+        command: ping 10.1.5.1 source 10.1.1.1 count 3
+      register: e2e
+
+    - name: Assert 3/3 replies
+      ansible.builtin.assert:
+        that:
+          - "'3 packets received' in e2e.stdout or '3 received' in e2e.stdout"
+          - "'0% packet loss' in e2e.stdout"
+        fail_msg: "area 1 -> area 2 path is broken: {{ e2e.stdout }}"
+        success_msg: "r1 (area 1) reaches r5 (area 2) through the backbone"
