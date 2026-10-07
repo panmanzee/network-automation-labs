@@ -29,6 +29,13 @@
       ansible.netcommon.cli_command:
         command: "show ip bgp {{ item.prefix }} json"
       register: detail
+      until: >-
+        detail.stdout.startswith('{') and
+        (item.nexthop is not defined or
+        (detail.stdout | from_json).paths | selectattr('bestpath', 'defined')
+        | map(attribute='nexthops') | first | map(attribute='ip') | first == item.nexthop)
+      retries: 30
+      delay: 3
       loop: "{{ expect_best | default([]) }}"
       loop_control:
         label: "{{ item.prefix }}"

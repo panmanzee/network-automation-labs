@@ -15,6 +15,11 @@
       ansible.netcommon.cli_command:
         command: show ip ospf route
       register: ospf_routes
+      until: >-
+        expect_routes | default([]) | map(attribute='prefix')
+        | select('in', ospf_routes.stdout) | list | length == expect_routes | default([]) | length
+      retries: 30
+      delay: 3
 
     - name: Expected routes are present (right LSA type)
       ansible.builtin.assert:
@@ -57,6 +62,9 @@
       ansible.netcommon.cli_command:
         command: ping 10.1.5.1 source 10.1.1.1 count 3
       register: e2e
+      until: "'0% packet loss' in e2e.stdout"
+      retries: 10
+      delay: 3
 
     - name: Assert 3/3 replies
       ansible.builtin.assert:
