@@ -93,3 +93,34 @@ jobs:
           sudo containerlab deploy -t smoke/topology.clab.yml
           ansible-playbook -i smoke/inventory.yml smoke/smoke.yml
           sudo containerlab destroy -t smoke/topology.clab.yml --cleanup
+
+  deploy-labs:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lab: [01-ospf-multiarea, 02-bgp-fundamentals]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "ansible-core>=2.17" ansible-pylibssh
+      - run: ansible-galaxy collection install -r ansible/requirements.yml
+      - name: throwaway keypair for CI
+        run: ssh-keygen -t ed25519 -N '' -q -f /tmp/ci_key
+      - name: build frr-lab image
+        run: docker/frr-lab/build.sh 10.7.1 /tmp/ci_key.pub
+      - name: install containerlab
+        run: bash -c "$(curl -sL https://get.containerlab.dev)"
+      - name: deploy, configure, verify, destroy
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: /tmp/ci_key
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          set -e
+          L=labs/${{ matrix.lab }}
+          sudo containerlab deploy -t $L/topology.clab.yml
+          trap 'sudo containerlab destroy -t $L/topology.clab.yml --cleanup' EXIT
+          ansible-playbook -i $L/inventory.yml $L/deploy.yml
+          ansible-playbook -i $L/inventory.yml $L/verify.yml

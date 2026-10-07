@@ -61,7 +61,7 @@ migration.
 │   ├── roles/frr_base/      # shared role: push config, verify state
 │   └── requirements.yml     # frr.frr + ansible.netcommon
 ├── smoke/                   # 2-node topology — the runnable-today proof of the toolchain (see below)
-├── labs/                    # per-lab topology + configs + deploy/verify playbooks + write-up (planned — see below)
+├── labs/                    # per-lab topology + configs + deploy/verify playbooks + write-up (OSPF and BGP built, EVPN planned)
 ├── docs/
 │   ├── lab-environment.md   # one-time host/Containerlab/FRR-image setup
 │   ├── automation.md        # bootstrap flow, auth model, FRR-vs-Cisco notes
@@ -73,15 +73,15 @@ migration.
 
 | # | Lab | Topics | Status |
 |---|-----|--------|--------|
-| 01 | OSPF multi-area | areas, LSA types, DR/BDR, key-chain auth, `area range` summarisation, stub/NSSA | planned |
-| 02 | BGP fundamentals | eBGP/iBGP, route-reflector, path selection, prefix-lists + route-maps, communities, aggregation | planned |
+| 01 | [OSPF multi-area](labs/01-ospf-multiarea/) | areas 0/1/2, ABR summarisation, totally stubby area, LSA type 5 (ASBR), MD5 authentication | built, verified by CI |
+| 02 | [BGP fundamentals](labs/02-bgp-fundamentals/) | eBGP/iBGP, route reflector, prefix-list + route-map filtering, local-preference path selection, communities, aggregation | built, verified by CI |
 | 03 | EVPN / VXLAN fabric | leaf-spine, eBGP-unnumbered underlay, EVPN overlay, L2VNI + L3VNI symmetric IRB | planned |
 
-**Honest status:** the automation foundation — image, Ansible role, CI
-pipeline, docs — is built and proven end-to-end by the `smoke/` topology
-below; the three protocol labs themselves are designed but not yet built.
-This repo currently demonstrates the *infrastructure-as-code toolchain*, not
-finished OSPF/BGP/EVPN configuration work.
+**Honest status:** labs 01 and 02 are built. Each one deploys a five-router
+topology, configures it with Ansible, and asserts the result (neighbours,
+route types, best path, hidden routes). Lab 03 is designed but not built yet.
+The labs run entirely in containers on one host and do not touch any physical
+network.
 
 ## Reproduce
 
@@ -91,8 +91,7 @@ deploy -t labs/<lab>/topology.clab.yml`, `ansible-playbook -i
 labs/<lab>/inventory.yml labs/<lab>/deploy.yml`, `ansible-playbook -i
 labs/<lab>/inventory.yml labs/<lab>/verify.yml`.
 
-Until the first lab lands, the [`smoke/`](smoke/) topology is the
-runnable-today proof of the toolchain:
+The [`smoke/`](smoke/) topology is the smallest proof of the toolchain:
 
 ```bash
 docker/frr-lab/build.sh
